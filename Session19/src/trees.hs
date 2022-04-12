@@ -166,19 +166,16 @@ data Skew a= Empty
 
 {-@ type BoundSkew a X = Skew {v:a | v >= X } @-}
 
-{-@ measure nonEmptySkew @-}
-nonEmptySkew Empty           = False
-nonEmptySkew t = True
+--the measures are translated into strengthened types for the type’s constructors
+{-@ measure emptySkew @-}
+emptySkew Empty = True
+emptySkew t = False
 
-{-@ boundSkew :: t:{v:Skew a | nonEmptySkew v} -> r:BoundSkew a (key t) @-}
-boundSkew :: Skew a -> Skew a
-boundSkew (Snode k l r) = Snode k l r
-
-{-@ sjoin :: Ord a => t1:Skew a -> t2:Skew a -> Skew a@-}
+{-@ sjoin :: Ord a => t1:Skew a -> t2:Skew a ->  Skew a @-}
 sjoin :: Ord a => Skew a -> Skew a -> Skew a
 sjoin Empty t2 = t2
 sjoin t1 Empty= t1
 sjoin t1@(Snode k1 l1 r1) t2@(Snode k2 l2 r2)
-              | k1<=k2 = Snode k1 (sjoin r1 (boundSkew t2)) l1
-              | otherwise= Snode k2 (sjoin (boundSkew t1) r2) l2
+              | k1<=k2 = Snode k1 (sjoin r1 $ Snode k2 l2 r2) l1
+              | otherwise= Snode k2 (sjoin (Snode k1 l1 r1) r2) l2
 

@@ -173,7 +173,7 @@ average' xs
   | otherwise = Nothing
   where
     elems     = size xs
-    ok        = True --notEmpty xs   -- What expression goes here?
+    ok        = notEmpty xs --True --notEmpty xs   -- What expression goes here?
 \end{code}
 
 <div class="hwex" id="Debugging Specifications">
@@ -239,8 +239,8 @@ safeHead xs
   | null xs   = Nothing
   | otherwise = Just $ head xs
 
-{-@ null      :: [a] -> Bool @-}
---{-@ null      :: xs:[a] -> {v:Bool | v <=> not (notEmpty xs)} @-}
+--{-@ null      :: [a] -> Bool @-}
+{-@ null      :: xs:[a] -> {v:Bool | v <=> not (notEmpty xs)} @-}
 null []       =  True
 null (_:_)    =  False
 \end{code}
@@ -308,7 +308,7 @@ sum xs  = foldl1 (+) xs
 \begin{code}
 sumOk  = sum [1,2,3,4,5]    -- is accepted by LH, but
 
-sumBad = sum []             -- is rejected by LH
+--sumBad = sum []             -- is rejected by LH
 \end{code}
 
 <div class="hwex" id="Weighted Average">
@@ -347,7 +347,7 @@ specification for `risers` so that it is verified.
 </div>
 
 \begin{code}
-{-@ risers       :: (Ord a) => [a] -> [[a]] @-}
+{-@ risers       :: (Ord a) => xs:[a] -> {v:[[a]] | notEmpty xs => notEmpty v }@-}
 risers           :: (Ord a) => [a] -> [[a]]
 risers []        = []
 risers [x]       = [[x]]
