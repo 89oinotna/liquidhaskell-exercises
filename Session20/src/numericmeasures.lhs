@@ -433,10 +433,14 @@ Use `partition` to implement `quickSort`.
 \begin{code}
 -- >> quickSort [1,4,3,2]
 -- [1,2,3,4]
+{-@ (+++) :: xs:[a] -> ys:[a] -> {v:[a] | size v == size xs + size ys}@-}
+(+++) :: [a] -> [a] -> [a]
+(+++) []     ys = ys
+(+++) (x:xs) ys = x : xs +++ ys
 
 {-@ quickSort    :: (Ord a) => xs:List a -> ListX a xs @-}
 quickSort []     = []
-quickSort (x:xs) = (quickSort fs) ++ [x] ++ (quickSort sn) 
+quickSort (x:xs) = (quickSort fs) +++ [x] +++ (quickSort sn) 
                   where
                   (fs, sn) = partition (\y -> y <= x) xs
 
@@ -573,18 +577,9 @@ test6  = dotProduct vx vy    -- should be accepted by LH
   @-}
 --flatten 0 0 (V 0 []) = V 0 []
 flatten 0 _ (V 0 []) = V 0 []
-flatten n m (V _ (vx:xs)) = vecFromList (vElts vx++(vElts (flatten (n-1) m $ vecFromList xs)))
+flatten n m (V _ (vx:xs)) = vecFromList (vElts vx+++(vElts (flatten (n-1) m $ V (n-1) xs)))
+--  | otherwise  = die "died"
 flatten _ _ _ = die "died"
-{- flatten n m xs= foldl (\acc x -> V (vDim acc + vDim x) (vElts acc ++ vElts x)) (V 0 []) xs
-  where
-  {-@ foldl :: (facc:Vector a  -> VectorN a m -> VectorN a {vDim facc+m}) -> acc:VectorN a m -> 
-              xs:VectorN (VectorN a m) n -> 
-              VectorN a {n*m} @-}
-  foldl :: (Vector a -> Vector a -> Vector a) -> Vector a -> Vector (Vector a) -> Vector a
-  foldl f z (V n (x:xs)) = let z' = z `f` x 
-                    in foldl f z' (V (n-1) xs)
-  foldl f z (V 0 [])   = z -}
-
 \end{code}
 
 -- Exercise 7: write a suitable code for flatten
@@ -673,17 +668,39 @@ bad2 = M 2 3 (V 2 [ V 3 [1, 2, 3]
 a `Matrix` from a nested list.
 </div>
 
+
+
 \begin{code}
-matFromList      :: [[a]] -> Maybe (Matrix a)
+allSatisfy :: (a -> Bool) -> [a] -> Bool
+allSatisfy f [] = True
+allSatisfy f (x:xs) = f x && allSatisfy f xs
+
+{-@ boundElems :: n:Nat -> xs:[[a]] -> Maybe (ListX (ListN a n) xs)@-}
+boundElems c [] = Just []
+boundElems c (x:xs) 
+  | size x == c = (x :) <$> boundElems c xs
+  | otherwise = Nothing
+
+{-@ matFromList :: xss:[[a]] -> Maybe ({v:MatrixN a (size xss) (size (head xss)) | 0 < size xss && 0 < size (head xss)}) @-}
+matFromList     :: [[a]] -> Maybe (Matrix a)
 matFromList []   = Nothing
 matFromList xss@(xs:_)
-  | ok           = Just (M r c vs)
+  | ok           = case boundElems c xss of 
+                    Nothing -> Nothing
+                    Just xss' -> Just (M r c vs)
+                                where 
+                                vs = vecFromList (map vecFromList xss')
   | otherwise    = Nothing
   where
     r            = size xss
     c            = size xs
-    ok           = undefined
-    vs           = undefined
+    ok           = 0 < r && 0 < c && allSatisfy (\x -> size x == c) xss
+
+{-@ map' :: (a -> b) -> xs:List a -> ListX b xs @-}
+map' :: (a -> b) -> [a] -> [b]
+map' f (x:xs) = f x : map' f xs
+map' _ _ = []
+    
 \end{code}
 
 <div class="hwex" id="Refined Matrix Constructor">
@@ -751,7 +768,22 @@ transpose (M r c rows) = M c r $ txgo c r rows
               -> VectorN (VectorN a c) r
               -> VectorN (VectorN a r) c
   @-}
-txgo c r rows = undefined
+txgo c r (V _ rows) = V c $ map (V r) $ txgo' c r $ map vElts rows
+
+{-@ txgo' :: c:Nat -> r:Nat
+          -> ListN (ListN a c) r
+          -> ListN (ListN a r) c
+  @-}
+txgo' :: Int -> Int -> [[a]] -> [[a]]
+txgo' 0 r rows = []
+txgo' c r rows = map head' rows : txgo' (c - 1) r (map tail' rows)
+
+{-@ head' :: {v:[a] | size v > 0} -> a @-}
+head' (x:_) = x
+
+
+{-@ tail' :: xs:{v:[a] | size v > 0} -> ListN a {(size xs) - 1}@-}
+tail' (x:xs) = xs
 \end{code}
 
 -- Exercise 10: complete the code of transpose
