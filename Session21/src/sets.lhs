@@ -670,11 +670,27 @@ computes the same result.)
 \begin{code}
 {-@ type Btwn I J = {v:_ | I <= v && v < J} @-}
 
+assert' _ x = x
+
 {-@ range     :: i:Int -> j:Int -> UList (Btwn i j) @-}
 range i j
-  | i < j     = i : range (i + 1) j
+  | i < j     = assert' (lemma_range i j r ) $
+                cc i r
   | otherwise = []
+  where 
+    r =range (i + 1) j
+
+{-@ cc :: x:a -> { xs:UList a | not (In x xs)} -> { v: UList a | Union1 (elts v) x (elts xs)} @-}
+cc :: a -> [a] -> [a] 
+cc x xs = x : xs
+
+{-@ lemma_range :: i:Int -> {j:Int | i<j} -> xs:UList (Btwn {i+1} j) -> {v:Bool | not (In i xs)} @-}
+lemma_range :: Int -> Int -> [Int] -> Bool
+lemma_range _ _ [] = True
+lemma_range i j (_:xs) = lemma_range i j xs
 \end{code}
+
+
 
 \hint This may be easier to do *after* you read this chapter [about lemmas](#lemmas).
 
